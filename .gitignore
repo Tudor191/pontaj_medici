@@ -1,0 +1,11 @@
+node_modules/
+.npm/
+
+# secrete
+.env
+config.json
+credentials.json
+
+# logs
+npm-debug.log*
+*.log
