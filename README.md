@@ -1,6 +1,6 @@
 # 🩺 Pontaj Medici
 
-Bot Discord pentru gestionarea pontajului medicilor pe server — pornire/oprire tură cu un click, dashboard live cu cine e de gardă, sincronizare automată cu Google Sheets și câteva utilitare de evidență pentru activitatea de pe server.
+Bot Discord făcut pentru facțiunea medicală a unui server de **roleplay FiveM** — pornire/oprire tură cu un click, dashboard live cu cine e de gardă, sincronizare automată cu Google Sheets și câteva utilitare de evidență pentru activitatea RP din tură (internări, DETOX, operații).
 
 ---
 
