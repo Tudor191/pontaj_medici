@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
+const { readJsonFile } = require("../utils/safeJson.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -37,7 +38,7 @@ module.exports = {
         .setStyle(ButtonStyle.Secondary)
     );
 
-    const settings = JSON.parse(fs.readFileSync(path.join(__dirname, "../ephemeral.json"), "utf8"));
+    const settings = readJsonFile(path.join(__dirname, "../ephemeral.json"), { ephemeral: false });
     await interaction.channel.send({ embeds: [embed], components: [row] });
   }
 };

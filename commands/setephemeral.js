@@ -1,15 +1,13 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
+const { readJsonFile } = require("../utils/safeJson.js");
 
 const settingsPath = path.join(__dirname, "../ephemeral.json");
 
 // citește setările
 function loadSettings() {
-  if (!fs.existsSync(settingsPath)) {
-    return { ephemeral: false };
-  }
-  return JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+  return readJsonFile(settingsPath, { ephemeral: false });
 }
 
 // salvează setările

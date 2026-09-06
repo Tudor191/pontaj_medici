@@ -2,6 +2,7 @@ const { userSessions } = require("../userSessions.js");
 const fs = require("fs");
 const path = require("path");
 const { MessageFlags } = require("discord.js");
+const { readJsonFile } = require("../utils/safeJson.js");
 
 module.exports = {
   customId: "statuspontaj_button",
@@ -16,7 +17,7 @@ if (userSessions[userId]) {
   message = `🛑 ${interaction.user}, \`NU AI\` pontajul pornit.`;
 }
 
-    const settings = JSON.parse(fs.readFileSync(path.join(__dirname, "../ephemeral.json"), "utf8"));
+    const settings = readJsonFile(path.join(__dirname, "../ephemeral.json"), { ephemeral: false });
     await interaction.reply({ content: message, flags: settings.ephemeral ? MessageFlags.Ephemeral : undefined });
   },
 };

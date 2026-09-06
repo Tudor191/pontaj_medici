@@ -1,6 +1,8 @@
 const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
+const { parsePontajLine } = require("../utils/pontajTime.js");
+const { readJsonFile } = require("../utils/safeJson.js");
 
 const csvPath = path.join(__dirname, "../pontaj.csv");
 const settingsPath = path.join(__dirname, "../ephemeral.json");
@@ -13,15 +15,8 @@ function loadPontaj() {
   const lines = data.split("\n");
   const pontaj = {};
   for (const line of lines) {
-    const [username, timeStr] = line.split(",");
-    const parts = timeStr.match(/(\d+)h (\d+)m (\d+)s/);
-    if (parts) {
-      const totalSeconds =
-        parseInt(parts[1]) * 3600 +
-        parseInt(parts[2]) * 60 +
-        parseInt(parts[3]);
-      pontaj[username] = totalSeconds;
-    }
+    const parsed = parsePontajLine(line);
+    if (parsed) pontaj[parsed.username] = parsed.totalSeconds;
   }
   return pontaj;
 }
@@ -42,7 +37,7 @@ module.exports = {
     const pontaj = loadPontaj();
 
     // citim setarea ephemeral.json
-    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+    const settings = readJsonFile(settingsPath, { ephemeral: false });
     const flags = settings.ephemeral === true ? MessageFlags.Ephemeral : undefined;
 
     // transformăm obiectul în array și sortăm

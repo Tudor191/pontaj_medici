@@ -1,6 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 const { MessageFlags } = require("discord.js");
+const { parsePontajLine } = require("../utils/pontajTime.js");
+const { readJsonFile } = require("../utils/safeJson.js");
 
 const csvPath = path.join(__dirname, "../pontaj.csv");
 
@@ -11,15 +13,8 @@ function loadPontaj() {
   const lines = data.split("\n");
   const pontaj = {};
   for (const line of lines) {
-    const [username, timeStr] = line.split(",");
-    const parts = timeStr.match(/(\d+)h (\d+)m (\d+)s/);
-    if (parts) {
-      const totalSeconds =
-        parseInt(parts[1]) * 3600 +
-        parseInt(parts[2]) * 60 +
-        parseInt(parts[3]);
-      pontaj[username] = totalSeconds;
-    }
+    const parsed = parsePontajLine(line);
+    if (parsed) pontaj[parsed.username] = parsed.totalSeconds;
   }
   return pontaj;
 }
@@ -46,7 +41,7 @@ if (totalSec > 0) {
   message = `ℹ️ ${interaction.user}, nu ai încă timp pontat.`;
 }
 
-    const settings = JSON.parse(fs.readFileSync(path.join(__dirname, "../ephemeral.json"), "utf8"));
+    const settings = readJsonFile(path.join(__dirname, "../ephemeral.json"), { ephemeral: false });
     await interaction.reply({ content: message, flags: settings.ephemeral ? MessageFlags.Ephemeral : undefined });
   },
 };

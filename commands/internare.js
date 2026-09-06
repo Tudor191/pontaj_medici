@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const fs = require("fs");
+const { readJsonFile } = require("../utils/safeJson.js");
 
 const counterFile = "./internari.json";
 
@@ -10,8 +11,7 @@ if (!fs.existsSync(counterFile)) {
 
 // funcție pentru a citi contorul din fișier
 function getCounter() {
-  const data = fs.readFileSync(counterFile);
-  return JSON.parse(data).count;
+  return readJsonFile(counterFile, { count: 0 }).count || 0;
 }
 
 // funcție pentru a salva contorul actualizat

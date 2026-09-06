@@ -5,6 +5,7 @@ const { MessageFlags } = require("discord.js");
 
 const { userSessions, recentlyStopped } = require("../userSessions.js");
 const { formatDuration, parsePontajLine, cellToSeconds } = require("../utils/pontajTime.js");
+const { readJsonFile } = require("../utils/safeJson.js");
 const { updateStatusMessage } = require("../statusUpdater.js");
 const csvPath = path.join(__dirname, "../pontaj.csv");
 const sessionsPath = path.join(__dirname, "../sessions.json");
@@ -53,8 +54,7 @@ function formatTime(sec) {
 
 // ---------- Utilitare sessions ----------
 function loadSessions() {
-  if (!fs.existsSync(sessionsPath)) return {};
-  return JSON.parse(fs.readFileSync(sessionsPath, "utf8"));
+  return readJsonFile(sessionsPath, {});
 }
 
 function saveSessions(sessions) {
@@ -131,7 +131,7 @@ module.exports = {
   async execute(interaction) {
     const userId = interaction.user.id;
     const username = interaction.user.username;
-    const settings = JSON.parse(fs.readFileSync(path.join(__dirname, "../ephemeral.json"), "utf8"));
+    const settings = readJsonFile(path.join(__dirname, "../ephemeral.json"), { ephemeral: false });
 
     const sessions = loadSessions();
     const pontaj = loadPontaj();
