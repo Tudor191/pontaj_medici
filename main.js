@@ -4,15 +4,26 @@ const { Client, Collection, GatewayIntentBits, REST, Routes, MessageFlags } = re
 const fs = require("fs");
 const { registerNicknameListener } = require("./events/nicknameUpdate");
 const { startPontajWatcher } = require("./statusUpdater.js");
+const { isNetworkError } = require("./utils/errors.js");
+
+// timestamp explicit pe erori — utile ca să vezi dacă problemele de rețea au un
+// tipar (aceeași oră, des/rar) și ca să ai ce arăta suportului găzduirii
+function logError(message, error) {
+  console.error(`[${new Date().toISOString()}] ${message}`, error);
+}
+
+function logWarn(message, error) {
+  console.warn(`[${new Date().toISOString()}] ${message}`, error);
+}
 
 // === Siguranțe la nivel de proces: o eroare necapturată NU mai oprește botul ===
 // (le înregistrăm primele, înainte de orice altceva, ca să prindem chiar și erori la încărcare)
 process.on("unhandledRejection", reason => {
-  console.error("❌ [unhandledRejection] Promise respinsă și necapturată:", reason);
+  logError("❌ [unhandledRejection] Promise respinsă și necapturată:", reason);
 });
 
 process.on("uncaughtException", error => {
-  console.error("❌ [uncaughtException] Eroare necapturată:", error);
+  logError("❌ [uncaughtException] Eroare necapturată:", error);
 });
 
 const config = {
@@ -37,11 +48,11 @@ const client = new Client({
 
 // erori la nivel de client/gateway (REST, WebSocket) — logăm, nu oprim botul
 client.on("error", error => {
-  console.error("❌ [client.error] Eroare Client (gateway/REST):", error);
+  logError("❌ [client.error] Eroare Client (gateway/REST):", error);
 });
 
 client.on("shardError", error => {
-  console.error("❌ [client.shardError] Eroare pe conexiunea WebSocket cu Discord:", error);
+  logError("❌ [client.shardError] Eroare pe conexiunea WebSocket cu Discord:", error);
 });
 
 // colecții
@@ -77,7 +88,7 @@ const rest = new REST({ version: "10" }).setToken(config.TOKEN);
     );
     console.log("✅ Comenzile au fost înregistrate.");
   } catch (error) {
-    console.error("❌ Eroare la înregistrarea comenzilor slash:", error);
+    logError("❌ Eroare la înregistrarea comenzilor slash:", error);
   }
 })();
 
@@ -107,7 +118,17 @@ function describeInteraction(interaction) {
 // trimite mesajul de eroare către utilizator, fără să arunce mai departe
 // dacă interaction-ul a expirat deja (ex: DiscordAPIError[10062] Unknown interaction)
 async function reportInteractionError(interaction, error, publicMessage) {
-  console.error(`❌ Eroare la procesarea interacțiunii [${describeInteraction(interaction)}]:`, error);
+  logError(`❌ Eroare la procesarea interacțiunii [${describeInteraction(interaction)}]:`, error);
+
+  if (isNetworkError(error)) {
+    // eroarea inițială a fost deja o problemă de conectivitate (nu de la Discord) —
+    // o a doua încercare de reply ar eșua garantat din același motiv, așa că n-o mai facem
+    logWarn(
+      `⚠️ Eroarea de mai sus pentru [${describeInteraction(interaction)}] e o problemă de rețea (${error.code}) — ` +
+        `nu mai încerc să trimit mesajul de eroare, ar eșua din același motiv.`
+    );
+    return;
+  }
 
   try {
     if (interaction.replied || interaction.deferred) {
@@ -116,7 +137,7 @@ async function reportInteractionError(interaction, error, publicMessage) {
       await interaction.reply({ content: publicMessage, flags: MessageFlags.Ephemeral });
     }
   } catch (notifyError) {
-    console.error(
+    logError(
       `⚠️ Nu am putut trimite mesajul de eroare pentru [${describeInteraction(interaction)}] ` +
         `(interaction-ul este probabil expirat sau Discord a fost temporar inaccesibil):`,
       notifyError
@@ -147,6 +168,6 @@ client.on("interactionCreate", async interaction => {
 
 // pornește botul
 client.login(config.TOKEN).catch(error => {
-  console.error("❌ Nu m-am putut conecta la Discord (login eșuat):", error);
+  logError("❌ Nu m-am putut conecta la Discord (login eșuat):", error);
   process.exit(1);
 });
