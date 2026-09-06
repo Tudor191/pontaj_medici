@@ -9,3 +9,9 @@ credentials.json
 # logs
 npm-debug.log*
 *.log
+
+# date live — nu trebuie suprascrise de un git pull la fiecare deploy
+pontaj.csv
+sessions.json
+ephemeral.json
+internari.json

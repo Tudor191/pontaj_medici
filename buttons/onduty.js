@@ -3,8 +3,9 @@ const path = require("path");
 const { google } = require("googleapis");
 const { MessageFlags } = require("discord.js");
 
-const { userSessions } = require("../userSessions.js");
+const { userSessions, recentlyStopped } = require("../userSessions.js");
 const { formatDuration, parsePontajLine, cellToSeconds } = require("../utils/pontajTime.js");
+const { updateStatusMessage } = require("../statusUpdater.js");
 const csvPath = path.join(__dirname, "../pontaj.csv");
 const sessionsPath = path.join(__dirname, "../sessions.json");
 
@@ -148,17 +149,25 @@ module.exports = {
       delete sessions[userId];
       saveSessions(sessions);
       delete userSessions[userId];
+      recentlyStopped[userId] = Date.now();
 
       await interaction.reply({
         content: `🛑 **Pontaj oprit**\nAi adăugat **\`${formatTime(elapsedSec)}\`** la total.`,
         flags: settings.ephemeral ? MessageFlags.Ephemeral : undefined
       });
 
+      if (interaction.guild) {
+        updateStatusMessage(interaction.guild).catch(err =>
+          console.error("❌ Eroare la actualizarea listei de status după oprire pontaj:", err)
+        );
+      }
+
       await updateTodayMinutesInSheet(username, total);
 
     } else {
       // === PORNIRE PONTAJ ===
       userSessions[userId] = Date.now();
+      delete recentlyStopped[userId];
       sessions[userId] = {
         username,
         startTime: Date.now(),
@@ -170,6 +179,12 @@ module.exports = {
         content: `✅ **Pontaj pornit**\nAi pornit pontajul în medici.`,
         flags: settings.ephemeral ? MessageFlags.Ephemeral : undefined
       });
+
+      if (interaction.guild) {
+        updateStatusMessage(interaction.guild).catch(err =>
+          console.error("❌ Eroare la actualizarea listei de status după pornire pontaj:", err)
+        );
+      }
     }
   }
 };

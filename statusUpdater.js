@@ -1,6 +1,15 @@
-const { userSessions } = require("./userSessions.js");
+const { userSessions, recentlyStopped } = require("./userSessions.js");
 
 const statusMessages = {}; // salvăm mesajele pentru fiecare guild
+
+// cât de des reeditam mesajul ca să prindem cine a mai pornit/oprit pontajul —
+// timpul afișat ("PORNIT de ...") ține pasul singur, nativ în Discord (<t:...:R>),
+// fără nicio cerere suplimentară — asta doar reîmprospătează lista de membri
+const STATUS_REFRESH_MS = 60 * 1000;
+
+// cât timp rămâne cineva vizibil ca "OPRIT" după ce oprește pontajul, înainte
+// să dispară din listă ca să nu se umple de nume vechi
+const STOPPED_RETENTION_MS = 5 * 60 * 1000;
 
 // regex pentru pattern [M-123]
 const pattern = /\[M-(\d{3})\]/;
@@ -16,6 +25,8 @@ function getStartTimestampFromSession(session) {
 
 function buildStatusLines(members) {
   const arr = [];
+  const now = Date.now();
+
   for (const [, member] of members) {
     const nickname = member.nickname || member.displayName || "";
     if (!pattern.test(nickname)) continue; // ignorăm dacă nu are [M-xxx]
@@ -29,22 +40,33 @@ function buildStatusLines(members) {
       } else {
         arr.push(`🟢 ${nickname} (<@${member.id}>) — PORNIT`);
       }
-    } else {
+      continue;
+    }
+
+    // nu mai are pontajul pornit — rămâne vizibil ca OPRIT doar STOPPED_RETENTION_MS
+    // de la oprire, apoi dispare din listă ca să nu ocupe spațiu la nesfârșit
+    const stoppedAt = recentlyStopped[member.id];
+    if (stoppedAt && now - stoppedAt < STOPPED_RETENTION_MS) {
       arr.push(`⚪ ${nickname} (<@${member.id}>) — OPRIT`);
     }
   }
   return arr;
 }
 
+// scoate din memorie intrările "oprit" mai vechi decât fereastra de afișare
+function pruneRecentlyStopped() {
+  const now = Date.now();
+  for (const [userId, stoppedAt] of Object.entries(recentlyStopped)) {
+    if (now - stoppedAt >= STOPPED_RETENTION_MS) {
+      delete recentlyStopped[userId];
+    }
+  }
+}
+
 async function updateStatusMessage(guild) {
   try {
-    const members = guild.members.cache; // doar cache, fără fetch
-    const lines = buildStatusLines(members);
-
-    if (lines.length === 0) return;
-
     const status = statusMessages[guild.id];
-    if (!status) return;
+    if (!status) return; // nimeni n-a rulat /verificastatuspontaje în acest guild încă
 
     const channel = guild.channels.cache.get(status.channelId);
     if (!channel) return;
@@ -52,23 +74,27 @@ async function updateStatusMessage(guild) {
     const msg = await channel.messages.fetch(status.messageId).catch(() => null);
     if (!msg) return;
 
-    await msg.edit({
-      content: `Am găsit ${lines.length} membri:\n\n${lines.join("\n")}`
-    });
+    const members = guild.members.cache; // doar cache, fără fetch
+    const lines = buildStatusLines(members);
+    const content = lines.length > 0
+      ? `Am găsit ${lines.length} membri:\n\n${lines.join("\n")}`
+      : "Niciun membru pontat momentan.";
+
+    await msg.edit({ content });
   } catch (err) {
     console.error("❌ Eroare la updateStatusMessage:", err);
   }
 }
 
 function startPontajWatcher(client) {
-  // actualizează statusul la fiecare 60 secunde
   setInterval(() => {
+    pruneRecentlyStopped();
     client.guilds.cache.forEach(guild => {
       updateStatusMessage(guild).catch(err =>
         console.error(`❌ Eroare în watcher-ul de status pentru guild ${guild.id}:`, err)
       );
     });
-  }, 60 * 1000);
+  }, STATUS_REFRESH_MS);
 }
 
 module.exports = {
@@ -76,5 +102,6 @@ module.exports = {
   startPontajWatcher,
   updateStatusMessage,
   buildStatusLines,
-  getStartTimestampFromSession
+  getStartTimestampFromSession,
+  pruneRecentlyStopped
 };
