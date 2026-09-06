@@ -69,10 +69,20 @@ async function updateStatusMessage(guild) {
     if (!status) return; // nimeni n-a rulat /verificastatuspontaje în acest guild încă
 
     const channel = guild.channels.cache.get(status.channelId);
-    if (!channel) return;
+    if (!channel) {
+      delete statusMessages[guild.id];
+      return;
+    }
 
-    const msg = await channel.messages.fetch(status.messageId).catch(() => null);
-    if (!msg) return;
+    // force:true — botul n-are intent-ul GuildMessages, deci nu află niciodată
+    // din gateway dacă mesajul a fost șters manual; fără asta, fetch ar întoarce
+    // liniștit copia veche din cache, iar abia edit() ar descoperi că a dispărut
+    const msg = await channel.messages.fetch({ message: status.messageId, force: true }).catch(() => null);
+    if (!msg) {
+      console.warn(`⚠️ Mesajul de status pentru guild ${guild.id} nu mai există — rulează din nou /verificastatuspontaje ca să reapară.`);
+      delete statusMessages[guild.id];
+      return;
+    }
 
     const members = guild.members.cache; // doar cache, fără fetch
     const lines = buildStatusLines(members);
@@ -82,6 +92,11 @@ async function updateStatusMessage(guild) {
 
     await msg.edit({ content });
   } catch (err) {
+    if (err.code === 10008) {
+      console.warn(`⚠️ Mesajul de status pentru guild ${guild.id} a fost șters — rulează din nou /verificastatuspontaje ca să reapară.`);
+      delete statusMessages[guild.id];
+      return;
+    }
     console.error("❌ Eroare la updateStatusMessage:", err);
   }
 }
